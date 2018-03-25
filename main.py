@@ -1,6 +1,8 @@
 from math import log
 import operator
-
+import sys
+import pandas
+import numpy as np
 
 
 # global that will be the dataset to use
@@ -20,17 +22,20 @@ def read_csv(filepath):
 	# Read csv in using pandas and set it to the data_set global
 	data_set = pandas.read_csv(filepath)
 	# Randomize the data
-	print data_set.shape[0]
-	data_set = data_set.sample(n=data_set.shape[0])
+	# print data_set.shape[0]
+	# data_set = data_set.sample(n=data_set.shape[0])
 
 #
-# This function will split the global data_set into features, classes, and measureable data
+# This function will split the global data_set into classes
 #
-def split_data():
+def format_data_set():
 	# Get a reference tp the global class_set
 	global class_set
 	# Get the entire last column of the dataset
-	class_set = [row[-1] for row in data_set]
+	class_set = np.asarray(data_set.iloc[:,-1]).tolist()
+	global data_set
+	# Now take all of the columns but the last
+	data_set = np.asarray(data_set.iloc[:,:]).tolist()
 
 
 #
@@ -226,5 +231,5 @@ def tree(data,labels):
 # Read in the file passed in by the command line when script started
 read_csv(sys.argv[1])
 
-
-print class_set
+format_data_set()
+print data_set[0]
