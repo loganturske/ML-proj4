@@ -2,6 +2,37 @@ from math import log
 import operator
 
 
+
+# global that will be the dataset to use
+data_set = None
+# global that will be the feature set of the data
+feature_set = None
+# global that will be the class set of the data
+class_set = None
+
+
+#
+# This function will read in a csv which is located at the parameter passed to it
+# 
+def read_csv(filepath):
+	# Get a reference to the global variable data_set
+	global data_set
+	# Read csv in using pandas and set it to the data_set global
+	data_set = pandas.read_csv(filepath)
+	# Randomize the data
+	print data_set.shape[0]
+	data_set = data_set.sample(n=data_set.shape[0])
+
+#
+# This function will split the global data_set into features, classes, and measureable data
+#
+def split_data():
+	# Get a reference tp the global class_set
+	global class_set
+	# Get the entire last column of the dataset
+	class_set = [row[-1] for row in data_set]
+
+
 #
 # This function will subtract the first parameter from the second parameter
 #
@@ -71,10 +102,10 @@ def get_entropy(data):
 	num_of_entries = len(data)
 	# Create an empty set to house all of the labels
 	labels = {}
-	# For each feature in the data passed in
-	for feature in data:
-		# Get the label of the particular feature
-		label = feature[-1]
+	# For each row in the data passed in
+	for row in data:
+		# Get the class of the particular row
+		label = row[-1]
 		# If the label for this feature is not in the labels set
 		if label not in labels.keys():
 			# Enter an entry for the label in the label set (set it to 0)
@@ -100,14 +131,14 @@ def get_entropy(data):
 def split_data(data, axis, val):
 	# Make a empty list
 	new_data = []
-	# For each feature in the dataset passed in
-	for feature in data:
+	# For each row in the dataset passed in
+	for row in data:
 		# If that feature on the particular axis has that value
-		if feature[axis] == val:
-			# Create a reduced feature set by removing that particular feater
-			reducedFeat = feature[:axis]
-			reducedFeat.extend(feature[axis+1:])
-			# Put the new feature set on the new data list
+		if row[axis] == val:
+			# Create a reduced row set by removing that particular feater
+			reducedFeat = row[:axis]
+			reducedFeat.extend(row[axis+1:])
+			# Put the new row set on the new data list
 			newData.append(reducedFeat)
 	# Return the new data set that has the feature  column removed
 	return newData
@@ -179,10 +210,21 @@ def tree(data,labels):
 	theTree = {bestFeatLabel:{}}
 	# Remove that feature from the label list so it does not get chose further down the tree
 	del(labels[bestFeat])
-	# 
-	featValues = [ex[bestFeat] for ex in data]
+	# Get all of the feature values from each row
+	featValues = [row[bestFeat] for row in data]
+	# Get all the unique values of the feature so there are no duplicats in the list
 	uniqueVals = set(featValues)
+	# For each value in the unique value list
 	for value in uniqueVals:
+		# Create a list of the labels to be used
 		subLabels = labels[:]
+		# The tree splits on the best feature value and you recurse to make a new sub tree
 		theTree[bestFeatLabel][value] = tree(split_data(data, bestFeat, value),subLabels)
+	# Return the tree that was created
 	return theTree
+
+# Read in the file passed in by the command line when script started
+read_csv(sys.argv[1])
+
+
+print class_set
