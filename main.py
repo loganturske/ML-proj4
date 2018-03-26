@@ -29,6 +29,12 @@ def read_csv(filepath):
 # This function will split the global data_set into classes
 #
 def format_data_set():
+		# Get the columns of the dataset
+	cols = data_set.columns
+	# Get a reference to the global feature_set
+	global feature_set
+	# Get all of the features by reading in all but the last column of the first row
+	feature_set = np.asarray(cols.tolist()[:-1]).tolist()
 	# Get a reference tp the global class_set
 	global class_set
 	# Get the entire last column of the dataset
@@ -144,9 +150,9 @@ def split_data(data, axis, val):
 			reducedFeat = row[:axis]
 			reducedFeat.extend(row[axis+1:])
 			# Put the new row set on the new data list
-			newData.append(reducedFeat)
+			new_data.append(reducedFeat)
 	# Return the new data set that has the feature  column removed
-	return newData
+	return new_data
 
 #
 # This function will choose the best feature of the data that was passed in
@@ -201,12 +207,14 @@ def tree(data,labels):
 	class_list = [row[-1] for row in data]
 	# If you have all the same classes
 	if class_list.count(class_list[0]) == len(class_list):
+		# print "Found leaf: " + str(class_list[0])
 		# Just return that class
-		return classList[0]
+		return class_list[0]
 	# If there is only classes
 	if len(data[0]) == 1:
+		# print "Found leaf: " + str(majority(class_list))
 		# Return the majority of the classes
-		return majority(classList)
+		return majority(class_list)
 	# Choose the best feature of the data that you are on
 	bestFeat = choose_feature(data)
 	# Get the label of the best feature you just chose
@@ -232,4 +240,16 @@ def tree(data,labels):
 read_csv(sys.argv[1])
 
 format_data_set()
-print data_set[0]
+tree = tree(data_set, class_set)
+
+test_set = [["vhigh","vhigh",2,2,"small","low","unacc"]]
+for test_row in test_set:
+	tempDict = tree.copy()
+	result = ""
+	while(isinstance(tempDict, dict)):
+		root = tempDict.keys()
+		print root
+		tempDict = tempDict[tempDict.keys()[0]]
+		print "######"
+		# print tempDict
+# 		index = feature_set.index(root)
