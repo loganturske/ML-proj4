@@ -4,50 +4,73 @@ import random
 import sys
 import pandas
 import numpy as np
-# Implement your decision tree below
-# Used the ID3 algorithm to implement the Decision Tree
 
 #
 # DecisionTree
-
+#
+# This class will build the decision tree using its method "learn"
+#
 class DecisionTree():
+	# Create an empty tree
 	tree = {}
-
+	# This function will create the tree and set it to self.tree for reference
 	def learn(self, training_set, attributes, target):
+		# Build the tree and set it to self.tree
 		self.tree = build_tree(training_set, attributes, target)
 
 
-# Class Node which will be used while classify a test-instance using the tree which was built earlier
+#
+# Node
+#
+# This class will represent a node/vertex of the tree when trying to classify
+#
 class Node():
+	# Set the value to be an empty string to set on initilization
 	value = ""
+	# Set a list of children to be filled up on initilization
 	children = []
-
+	# On initilization you need to set your value and children
 	def __init__(self, val, dictionary):
+		# Set your value to whatever you passed in as the parameter "val"
 		self.value = val
+		# Error check to make sure you passed in a dictionary in the parameter "dictionary"
 		if (isinstance(dictionary, dict)):
+			# Set your children to be the keys of the dictionary that was passed in 
+			# as "dictionary"
 			self.children = dictionary.keys()
 
 
-# Majority Function which tells which class has more entries in given data-set
+#
+# This function will return which class has the majority of entries in the given dataset "data"
+#
 def majorClass(attributes, data, target):
-
+	# Create an empyt set to house the frequency of classes
 	freq = {}
+	# Get the index of the target attribute based upon the parameters
 	index = attributes.index(target)
-
+	# For each of the entries in the dataset
 	for tuple in data:
+		# If there already is a key of that particular entry
 		if (freq.has_key(tuple[index])):
+			# Increment its frequency 
 			freq[tuple[index]] += 1 
+		# If there is no entry of that key in the frequency set
 		else:
+			# Set the frequency of that key to 1
 			freq[tuple[index]] = 1
-
+	# Set a maximum to be 0 to be used later
 	max = 0
+	# Set the corresponding majority class to be empty for now
 	major = ""
-
+	# For each key in the frequency set
 	for key in freq.keys():
+		# If the key has been seen more times that the max
 		if freq[key]>max:
+			# Set the max to be that keys number of times it was seen
 			max = freq[key]
+			# Set the majority class to be the key
 			major = key
-
+	# Return the class who has the majority
 	return major
 
 
