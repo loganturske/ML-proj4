@@ -73,100 +73,144 @@ def majorClass(attributes, data, target):
 	# Return the class who has the majority
 	return major
 
-
-# Calculates the entropy of the data given the target attribute
+#
+# This function calculates the entropy of the data given the target attribute
+#
 def entropy(attributes, data, targetAttr):
-
+	# Create and empty set that will be the frequency of the attributes
 	freq = {}
+	# Set the entropy to be 0 to be used later
 	dataEntropy = 0.0
-
+	# Set a counter
 	i = 0
+	# For each entry in the attributes
 	for entry in attributes:
+		# If you found the target entry
 		if (targetAttr == entry):
+			# Break out of the loop
 			break
+		# Increment the counter
 		i = i + 1
-
+	# Subtract 1 from the counter so that you get the appropriate amount
 	i = i - 1
-
+	# For each entry in the data that was passed in
 	for entry in data:
+		# If there exists a key for that entry
 		if (freq.has_key(entry[i])):
+			# Increment its frequency by 1
 			freq[entry[i]] += 1.0
+		# If you have not seen this entry yet
 		else:
+			# Set its frequency to 1
 			freq[entry[i]]  = 1.0
-
+	# For each of the frequencies in the freq list
 	for freq in freq.values():
+		# Calculate its entropy given the entropy formula
 		dataEntropy += (-freq/len(data)) * math.log(freq/len(data), 2) 
-		
+	# Return the complete calculated entropy
 	return dataEntropy
 
-
-# Calculates the information gain (reduction in entropy) in the data when a particular attribute is chosen for splitting the data.
+#
+# This function calculates the information gain (reduction in entropy) 
+# in the data when a particular attribute is chosen for splitting the data.
+#
 def info_gain(attributes, data, attr, targetAttr):
-
+	# Create an empty set for setting the frequency of entries
 	freq = {}
+	# Set a entropy variable to 0 to be used later
 	subsetEntropy = 0.0
+	# Get the index of the particular attribute passed in as "attr"
 	i = attributes.index(attr)
-
+	# For each entry in the data passed in
 	for entry in data:
+		# If there exists a key for that entry
 		if (freq.has_key(entry[i])):
+			# Increment its frequency by 1
 			freq[entry[i]] += 1.0
+		# If you have not seen this entry yet
 		else:
+			# Set its frequency to 1
 			freq[entry[i]]  = 1.0
-
+	# For each of the entries in the frequncy set
 	for val in freq.keys():
+		# Calculate the probability of that entry
 		valProb        = freq[val] / sum(freq.values())
+		# Get the data of that particual entry
 		dataSubset     = [entry for entry in data if entry[i] == val]
+		# Calculate the entropy for that particular entry and mulitply it by the probability
 		subsetEntropy += valProb * entropy(attributes, dataSubset, targetAttr)
-
+	# Return the information gain by calculating the entropy and subtracting the subset entropy you found
 	return (entropy(attributes, data, targetAttr) - subsetEntropy)
 
-
+#
 # This function chooses the attribute among the remaining attributes which has the maximum information gain.
+#
 def attr_choose(data, attributes, target):
-
+	# Set an arbitrary attribute to be compared against later
 	best = attributes[0]
+	# Set the maximum info gain to be 0
 	maxGain = 0;
-
+	# For each attribute
 	for attr in attributes:
+		# Calculate the information gain of that attribute
 		newGain = info_gain(attributes, data, attr, target) 
+		# If the info gain for the attribute is better than the maximum
 		if newGain>maxGain:
+			# Set the new maximum info gain
 			maxGain = newGain
+			# Set the best attribute to be the one you are currently on
 			best = attr
-
+	# Return the bet attribute you found
 	return best
 
-
-# This function will get unique values for that particular attribute from the given data
+#
+# This function will get unique values for the particular attribute from the given data
+#
 def get_values(data, attributes, attr):
-
+	# Get the index of the attribute passed in
 	index = attributes.index(attr)
+	# Set an empty list to be filled in later
 	values = []
-
+	# For each entry in the data passed in
 	for entry in data:
+		# If there is a entry for the particular attribute that is not in the values list
 		if entry[index] not in values:
+			# Append that entry attribute value to the values list
 			values.append(entry[index])
-
+	# Return the list of values for the particular attribute
 	return values
 
+#
 # This function will get all the rows of the data where the chosen "best" attribute has a value "val"
+#
 def get_data(data, attributes, best, val):
-
+	# Set a 2 dimensional list to be empyt to be filled in later
 	new_data = [[]]
+	# Get the index of the attribute that you have choses passed in as "best"
 	index = attributes.index(best)
-
+	# For each entry in the data set
 	for entry in data:
-		if (entry[index] == val):
+		# If the entry has the attribute as the value "val", which was passed to the function
+		if (entry[index] == val):	
+			# Create a new empty list
 			newEntry = []
+			# For each item in entry
 			for i in range(0,len(entry)):
+				# If the current count you are on is not the index
 				if(i != index):
+					# Append the particular entry attribute to the newEntry list
 					newEntry.append(entry[i])
+			# Append the newEntry list to the new_data list to be returned
 			new_data.append(newEntry)
-
-	new_data.remove([])    
+	# Remove any empty lists
+	new_data.remove([])
+	# Return the new_data list which are the rows with the best attribute with value "val"
 	return new_data
 
-
-# This function is used to build the decision tree using the given data, attributes and the target attributes. It returns the decision tree in the end.
+#
+# This function is used to build the decision tree using the given data, attributes and the target attributes.
+# It returns the decision tree in the end.
+#
 def build_tree(data, attributes, target):
 
 	data = data[:]
@@ -189,44 +233,6 @@ def build_tree(data, attributes, target):
 			tree[best][val] = subtree
 	
 	return tree
-
-# global that will be the dataset to use
-data_set = None
-# global that will be the feature set of the data
-feature_set = None
-# global that will be the class set of the data
-class_set = None
-
-
-#
-# This function will read in a csv which is located at the parameter passed to it
-# 
-def read_csv(filepath):
-	# Get a reference to the global variable data_set
-	global data_set
-	# Read csv in using pandas and set it to the data_set global
-	data_set = pandas.read_csv(filepath)
-	# Randomize the data
-	# print data_set.shape[0]
-	# data_set = data_set.sample(n=data_set.shape[0])
-
-#
-# This function will split the global data_set into classes
-#
-def format_data_set():
-		# Get the columns of the dataset
-	cols = data_set.columns
-	# Get a reference to the global feature_set
-	global feature_set
-	# Get all of the features by reading in all but the last column of the first row
-	feature_set = np.asarray(cols.tolist()[:-1]).tolist()
-	# Get a reference tp the global class_set
-	global class_set
-	# Get the entire last column of the dataset
-	class_set = np.asarray(data_set.iloc[:,-1]).tolist()
-	global data_set
-	# Now take all of the columns but the last
-	data_set = np.asarray(data_set.iloc[:,:]).tolist()
 
 # This function runs the decision tree algorithm. It parses the file for the data-set, and then it runs the 10-fold cross-validation. It also classifies a test-instance and later compute the average accurracy
 # Improvements Used: 
