@@ -29,8 +29,10 @@ class Node():
 	value = ""
 	# Set a list of children to be filled up on initilization
 	children = []
+	# Set a value to know if you are marking this node for pruning
+	prune = 0
 	# On initilization you need to set your value and children
-	def __init__(self, val, dictionary):
+	def __init__(self, val, dictionary,prune):
 		# Set your value to whatever you passed in as the parameter "val"
 		self.value = val
 		# Error check to make sure you passed in a dictionary in the parameter "dictionary"
@@ -212,26 +214,39 @@ def get_data(data, attributes, best, val):
 # It returns the decision tree in the end.
 #
 def build_tree(data, attributes, target):
-
+	# Create a copy of the data set
 	data = data[:]
+	# Get the values for each row of the given target
 	vals = [record[attributes.index(target)] for record in data]
+	# Get the majority of classes based on the given target
 	default = majorClass(attributes, data, target)
-
+	# If you ran out of data
 	if not data or (len(attributes) - 1) <= 0:
+		# Return the default class you found
 		return default
+	# If you have all of the same class
 	elif vals.count(vals[0]) == len(vals):
+		# Return that class
 		return vals[0]
+	# Otherwise
 	else:
+		# Get the best attribute based on the target
 		best = attr_choose(data, attributes, target)
+		# Create an empty tree
 		tree = {best:{}}
-	
+		# For each value in the rest of the data set
 		for val in get_values(data, attributes, best):
+			# Get the of the rows based upon the best attribute and the corresponding value
 			new_data = get_data(data, attributes, best, val)
+			# Make a copy of the attributes
 			newAttr = attributes[:]
+			# Remove the "best" attribute, so you don't choose it again
 			newAttr.remove(best)
+			# Recurse down based on the new data and attributes you just did
 			subtree = build_tree(new_data, newAttr, target)
+			# Set the sub tree to be the one you went and recursed down to
 			tree[best][val] = subtree
-	
+	# Return the tree
 	return tree
 
 # This function runs the decision tree algorithm. It parses the file for the data-set, and then it runs the 10-fold cross-validation. It also classifies a test-instance and later compute the average accurracy
@@ -267,12 +282,12 @@ def run_decision_tree():
 			tempDict = tree.tree.copy()
 			result = ""
 			while(isinstance(tempDict, dict)):
-				root = Node(tempDict.keys()[0], tempDict[tempDict.keys()[0]])
+				root = Node(tempDict.keys()[0], tempDict[tempDict.keys()[0]],0)
 				tempDict = tempDict[tempDict.keys()[0]]
 				index = attributes.index(root.value)
 				value = entry[index]
 				if(value in tempDict.keys()):
-					child = Node(value, tempDict[value])
+					child = Node(value, tempDict[value],0)
 					result = tempDict[value]
 					tempDict = tempDict[value]
 				else:
