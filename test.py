@@ -5,6 +5,14 @@ import sys
 import pandas
 import numpy as np
 
+# global that will be the dataset to use
+data_set = None
+# global that will be the feature set of the data
+feature_set = None
+# global that will be the class set of the data
+class_set = None
+
+
 #
 # DecisionTree
 #
@@ -41,6 +49,32 @@ class Node():
 			# as "dictionary"
 			self.children = dictionary.keys()
 
+#
+# This function will read in a csv which is located at the parameter passed to it
+# and return the things read
+# 
+def read_csv(filepath):
+	# Make a reference to the data set
+	data = []
+	# Make a reference to the attributes
+	attributes = []
+	# Make a counter variable
+	counter = 0
+	# Open the file at filepath
+	with open(filepath) as tsv:
+		# For each line in the file separated by commas
+		for line in csv.reader(tsv, delimiter=","):
+			# If you are on the first line
+			if counter == 0:
+				# Set the attributes variable
+				attributes = line
+				# Make the counter 1
+				counter = 1
+			# Append to data set
+			else:
+				data.append(tuple(line))
+	# Return a tuple with the information we read
+	return (attributes, data)
 
 #
 # This function will return which class has the majority of entries in the given dataset "data"
@@ -253,19 +287,8 @@ def build_tree(data, attributes, target):
 # Improvements Used: 
 # 1. Discrete Splitting for attributes "age" and "fnlwght"
 # 2. Random-ness: Random Shuffle of the data before Cross-Validation
-def run_decision_tree():
-    data = []
+def run_decision_tree(data, attributes, prune):
 
-    with open("image.csv") as tsv:
-        for line in csv.reader(tsv, delimiter=","):
-            data.append(tuple(line))
-
-	print "Number of records: %d" % len(data)
-
-	attributes = ["REGION-CENTROID-COL","REGION-CENTROID-ROW","REGION-PIXEL-COUNT","SHORT-LINE-DENSITY-5",\
-	"SHORT-LINE-DENSITY-2","VEDGE-MEAN","VEDGE-SD","HEDGE-MEAN","HEDGE-SD","INTENSITY-MEAN","RAWRED-MEAN",\
-	"RAWBLUE-MEAN","RAWGREEN-MEAN","EXRED-MEAN","EXBLUE-MEAN","EXGREEN-MEAN","VALUE-MEAN","SATURATION-MEAN",\
-	"HUE-MEAN","classes"]
 	target = attributes[-1]
 
 	K = 10
@@ -302,10 +325,8 @@ def run_decision_tree():
 	avg_acc = sum(acc)/len(acc)
 	print "Average accuracy: %.4f" % avg_acc
 
-	# Writing results to a file (DO NOT CHANGE)
-	f = open("result.txt", "w")
-	f.write("accuracy: %.4f" % avg_acc)
-	f.close()
-
 if __name__ == "__main__":
-	run_decision_tree()
+	# Read in the file passed in by the command line when script started
+	info = read_csv(sys.argv[1])
+	prune = sys.argv[2]
+	run_decision_tree(info[1], info[0], prune)

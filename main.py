@@ -1,9 +1,9 @@
-from math import log
-import operator
+import csv
+import math
+import random
 import sys
 import pandas
 import numpy as np
-
 
 # global that will be the dataset to use
 data_set = None
@@ -14,242 +14,348 @@ class_set = None
 
 
 #
+# DecisionTree
+#
+# This class will build the decision tree using its method "learn"
+#
+class DecisionTree():
+	# Create an empty tree
+	tree = {}
+	# This function will create the tree and set it to self.tree for reference
+	def learn(self, training_set, attributes, target):
+		# Build the tree and set it to self.tree
+		self.tree = build_tree(training_set, attributes, target)
+
+
+#
+# Node
+#
+# This class will represent a node/vertex of the tree when trying to classify
+#
+class Node():
+	# Set the value to be an empty string to set on initilization
+	value = ""
+	# Set a list of children to be filled up on initilization
+	children = []
+	# Set a value to know if you are marking this node for pruning
+	prune = 0
+	# On initilization you need to set your value and children
+	def __init__(self, val, dictionary,prune):
+		# Set your value to whatever you passed in as the parameter "val"
+		self.value = val
+		# Error check to make sure you passed in a dictionary in the parameter "dictionary"
+		if (isinstance(dictionary, dict)):
+			# Set your children to be the keys of the dictionary that was passed in 
+			# as "dictionary"
+			self.children = dictionary.keys()
+
+#
 # This function will read in a csv which is located at the parameter passed to it
+# and return the things read
 # 
 def read_csv(filepath):
-	# Get a reference to the global variable data_set
-	global data_set
-	# Read csv in using pandas and set it to the data_set global
-	data_set = pandas.read_csv(filepath)
-	# Randomize the data
-	# print data_set.shape[0]
-	# data_set = data_set.sample(n=data_set.shape[0])
+	# Make a reference to the data set
+	data = []
+	# Make a reference to the attributes
+	attributes = []
+	# Make a counter variable
+	counter = 0
+	# Open the file at filepath
+	with open(filepath) as tsv:
+		# For each line in the file separated by commas
+		for line in csv.reader(tsv, delimiter=","):
+			# If you are on the first line
+			if counter == 0:
+				# Set the attributes variable
+				attributes = line
+				# Make the counter 1
+				counter = 1
+			# Append to data set
+			else:
+				data.append(tuple(line))
+	# Return a tuple with the information we read
+	return (attributes, data)
 
 #
-# This function will split the global data_set into classes
+# This function will return which class has the majority of entries in the given dataset "data"
 #
-def format_data_set():
-		# Get the columns of the dataset
-	cols = data_set.columns
-	# Get a reference to the global feature_set
-	global feature_set
-	# Get all of the features by reading in all but the last column of the first row
-	feature_set = np.asarray(cols.tolist()[:-1]).tolist()
-	# Get a reference tp the global class_set
-	global class_set
-	# Get the entire last column of the dataset
-	class_set = np.asarray(data_set.iloc[:,-1]).tolist()
-	global data_set
-	# Now take all of the columns but the last
-	data_set = np.asarray(data_set.iloc[:,:]).tolist()
-
-
-#
-# This function will subtract the first parameter from the second parameter
-#
-def subtract_points(a,b):
-	# Subtract the points
-	return a - b
-
-#
-# This function will square the parameter
-#
-def square_it(a):
-	# Square parameter by multiplying it by itself
-	return a * a
-
-#
-# This function will divide the first parameter by the second parameter
-#
-def divide_a_by_b(a,b):
-	# Check to make sure that the divisor is not zero
-	if b == 0:
-		# If the divisor is 0 return 0
-		return 0
-	# Divid a by b
-	return float(a)/float(b)
+def majorClass(attributes, data, target):
+	# Create an empyt set to house the frequency of classes
+	freq = {}
+	# Get the index of the target attribute based upon the parameters
+	index = attributes.index(target)
+	# For each of the entries in the dataset
+	for tuple in data:
+		# If there already is a key of that particular entry
+		if (freq.has_key(tuple[index])):
+			# Increment its frequency 
+			freq[tuple[index]] += 1 
+		# If there is no entry of that key in the frequency set
+		else:
+			# Set the frequency of that key to 1
+			freq[tuple[index]] = 1
+	# Set a maximum to be 0 to be used later
+	max = 0
+	# Set the corresponding majority class to be empty for now
+	major = ""
+	# For each key in the frequency set
+	for key in freq.keys():
+		# If the key has been seen more times that the max
+		if freq[key]>max:
+			# Set the max to be that keys number of times it was seen
+			max = freq[key]
+			# Set the majority class to be the key
+			major = key
+	# Return the class who has the majority
+	return major
 
 #
-# Return the greater of the two parameters that were passed in
-# If they are equal, the second parameter will be returned
+# This function calculates the entropy of the data given the target attribute
 #
-def get_max_of(a, b):
-	# If a is larger than b 
-	if a > b:
-		# Return a
-		return a
-	# Otherwise return b
-	return b
+def entropy(attributes, data, targetAttr):
+	# Create and empty set that will be the frequency of the attributes
+	freq = {}
+	# Set the entropy to be 0 to be used later
+	dataEntropy = 0.0
+	# Set a counter
+	i = 0
+	# For each entry in the attributes
+	for entry in attributes:
+		# If you found the target entry
+		if (targetAttr == entry):
+			# Break out of the loop
+			break
+		# Increment the counter
+		i = i + 1
+	# Subtract 1 from the counter so that you get the appropriate amount
+	i = i - 1
+	# For each entry in the data that was passed in
+	for entry in data:
+		# If there exists a key for that entry
+		if (freq.has_key(entry[i])):
+			# Increment its frequency by 1
+			freq[entry[i]] += 1.0
+		# If you have not seen this entry yet
+		else:
+			# Set its frequency to 1
+			freq[entry[i]]  = 1.0
+	# For each of the frequencies in the freq list
+	for freq in freq.values():
+		# Calculate its entropy given the entropy formula
+		dataEntropy += (-freq/len(data)) * math.log(freq/len(data), 2) 
+	# Return the complete calculated entropy
+	return dataEntropy
 
 #
-# This function will take the square root of the parameter passed to it
+# This function calculates the information gain (reduction in entropy) 
+# in the data when a particular attribute is chosen for splitting the data.
 #
-def take_square_root(a):
-	# Return the square root of a
-	return np.sqrt(a)
+def info_gain(attributes, data, attr, targetAttr):
+	# Create an empty set for setting the frequency of entries
+	freq = {}
+	# Set a entropy variable to 0 to be used later
+	subsetEntropy = 0.0
+	# Get the index of the particular attribute passed in as "attr"
+	i = attributes.index(attr)
+	# For each entry in the data passed in
+	for entry in data:
+		# If there exists a key for that entry
+		if (freq.has_key(entry[i])):
+			# Increment its frequency by 1
+			freq[entry[i]] += 1.0
+		# If you have not seen this entry yet
+		else:
+			# Set its frequency to 1
+			freq[entry[i]]  = 1.0
+	# For each of the entries in the frequncy set
+	for val in freq.keys():
+		# Calculate the probability of that entry
+		valProb        = freq[val] / sum(freq.values())
+		# Get the data of that particual entry
+		dataSubset     = [entry for entry in data if entry[i] == val]
+		# Calculate the entropy for that particular entry and mulitply it by the probability
+		subsetEntropy += valProb * entropy(attributes, dataSubset, targetAttr)
+	# Return the information gain by calculating the entropy and subtracting the subset entropy you found
+	return (entropy(attributes, data, targetAttr) - subsetEntropy)
 
 #
-# This function will get the average value of the array that was passed in
+# This function chooses the attribute among the remaining attributes which has the maximum information gain.
 #
-def get_average(arr):
-	# Set a running total to zero
-	total = 0
-	# Set a running count to zero
-	count = 0
-	# For each element in the array
-	for ele in arr:
-		# Add the element to the running total
-		total += ele
-		# Increment the count by 1
-		count += 1
-	# Return the total divided by the count
-	return divide_a_by_b(float(total),float(count))
+def attr_choose(data, attributes, target):
+	# Set an arbitrary attribute to be compared against later
+	best = attributes[0]
+	# Set the maximum info gain to be 0
+	maxGain = 0;
+	# For each attribute
+	for attr in attributes:
+		# Calculate the information gain of that attribute
+		newGain = info_gain(attributes, data, attr, target) 
+		# If the info gain for the attribute is better than the maximum
+		if newGain>maxGain:
+			# Set the new maximum info gain
+			maxGain = newGain
+			# Set the best attribute to be the one you are currently on
+			best = attr
+	# Return the bet attribute you found
+	return best
 
 #
-# This function will get the entropy of the data passed to it
+# This function will get unique values for the particular attribute from the given data
 #
-def get_entropy(data):
-	# Get the number of entries of the data
-	num_of_entries = len(data)
-	# Create an empty set to house all of the labels
-	labels = {}
-	# For each row in the data passed in
-	for row in data:
-		# Get the class of the particular row
-		label = row[-1]
-		# If the label for this feature is not in the labels set
-		if label not in labels.keys():
-			# Enter an entry for the label in the label set (set it to 0)
-			labels[label] = 0
-		# Add one to the entry for the label in the label set
-		labels[label] += 1
-	# Set entropy to 0
-	entropy = 0.0
-	# For each key in the label set
-	for key in labels:
-		# Get the probability by getting the number of that label divided by
-		# the maximum number of entries
-		probability = divide_a_by_b(float(labels[key]), num_of_entries)
-		# Take the log base 2 of the probability and multiply it by the probability
-		# then subtract from the entropy you have calculated so far
-		entropy -= probability * log(probability,2)
-	# Return the entropy that you found
-	return entropy
+def get_values(data, attributes, attr):
+	# Get the index of the attribute passed in
+	index = attributes.index(attr)
+	# Set an empty list to be filled in later
+	values = []
+	# For each entry in the data passed in
+	for entry in data:
+		# If there is a entry for the particular attribute that is not in the values list
+		if entry[index] not in values:
+			# Append that entry attribute value to the values list
+			values.append(entry[index])
+	# Return the list of values for the particular attribute
+	return values
 
 #
-# This function will split the data passed in on a given feauture
+# This function will get all the rows of the data where the chosen "best" attribute has a value "val"
 #
-def split_data(data, axis, val):
-	# Make a empty list
-	new_data = []
-	# For each row in the dataset passed in
-	for row in data:
-		# If that feature on the particular axis has that value
-		if row[axis] == val:
-			# Create a reduced row set by removing that particular feater
-			reducedFeat = row[:axis]
-			reducedFeat.extend(row[axis+1:])
-			# Put the new row set on the new data list
-			new_data.append(reducedFeat)
-	# Return the new data set that has the feature  column removed
+def get_data(data, attributes, best, val):
+	# Set a 2 dimensional list to be empyt to be filled in later
+	new_data = [[]]
+	# Get the index of the attribute that you have choses passed in as "best"
+	index = attributes.index(best)
+	# For each entry in the data set
+	for entry in data:
+		# If the entry has the attribute as the value "val", which was passed to the function
+		if (entry[index] == val):	
+			# Create a new empty list
+			newEntry = []
+			# For each item in entry
+			for i in range(0,len(entry)):
+				# If the current count you are on is not the index
+				if(i != index):
+					# Append the particular entry attribute to the newEntry list
+					newEntry.append(entry[i])
+			# Append the newEntry list to the new_data list to be returned
+			new_data.append(newEntry)
+	# Remove any empty lists
+	new_data.remove([])
+	# Return the new_data list which are the rows with the best attribute with value "val"
 	return new_data
 
 #
-# This function will choose the best feature of the data that was passed in
+# This function is used to build the decision tree using the given data, attributes and the target attributes.
+# It returns the decision tree in the end.
 #
-def choose_feature(data):
-	# Get the number of features
-	features = len(data[0]) - 1
-	# Get the entropy of the data that was passed in
-	baseEntropy = get_entropy(data)
-	# Set the best gain so far to be 0
-	bestInfoGain = 0.0;
-	# Set the best feature to be -1
-	bestFeat = -1
-	# For all of the features
-	for i in range(features):
-		# Get a list of the corresponding features from the dataset
-		featList = [row[i] for row in data]
-		# Get an unordered set of all unique values for the corresponding feature
-		uniqueVals = set(featList)
-		# Set a new entropy to be 0
-		newEntropy = 0.0
-		# For each value in the set of unique values
-		for value in uniqueVals:
-			# Split the data on the value
-			newData = split_data(data, i, value)
-			# Get the probablility of the new data by dividing by the total
-			# number of data rows passed in
-			probability = len(newData)/float(len(data))
-			# The new entropy is the probability multiplied by the entropy of the data
-			newEntropy += probability * get_entropy(newData)
-		# Take the base entropy and subtract the new entropy that you just got
-		infoGain = baseEntropy - newEntropy
-		# If the information gain is better than the best information gain so far
-		if (infoGain > bestInfoGain):
-			# Set a new best information gain so far
-			bestInfoGain = infoGain
-			# Set the best feature so far
-			bestFeat = i
-	# Return the best feature that you found
-	return bestFeat
+def build_tree(data, attributes, target):
+	# Create a copy of the data set
+	data = data[:]
+	# Get the values for each row of the given target
+	vals = [record[attributes.index(target)] for record in data]
+	# Get the majority of classes based on the given target
+	default = majorClass(attributes, data, target)
+	# If you ran out of data
+	if not data or (len(attributes) - 1) <= 0:
+		# Return the default class you found
+		return default
+	# If you have all of the same class
+	elif vals.count(vals[0]) == len(vals):
+		# Return that class
+		return vals[0]
+	# Otherwise
+	else:
+		# Get the best attribute based on the target
+		best = attr_choose(data, attributes, target)
+		# Create an empty tree
+		tree = {best:{}}
+		# For each value in the rest of the data set
+		for val in get_values(data, attributes, best):
+			# Get the of the rows based upon the best attribute and the corresponding value
+			new_data = get_data(data, attributes, best, val)
+			# Make a copy of the attributes
+			newAttr = attributes[:]
+			# Remove the "best" attribute, so you don't choose it again
+			newAttr.remove(best)
+			# Recurse down based on the new data and attributes you just did
+			subtree = build_tree(new_data, newAttr, target)
+			# Set the sub tree to be the one you went and recursed down to
+			tree[best][val] = subtree
+	# Return the tree
+	return tree
 
-def majority(classList):
-	classCount={}
-	for vote in classList:
-		if vote not in classCount.keys(): classCount[vote] = 0
-		classCount[vote] += 1
-	sortedClassCount = sorted(classCount.iteritems(), key=operator.itemgetter(1), reverse=True)
-	return sortedClassCount[0][0]
+# This function runs the decision tree algorithm. It parses the file for the data-set, and then it runs the 10-fold cross-validation. It also classifies a test-instance and later compute the average accurracy
+# Improvements Used: 
+# 1. Discrete Splitting for attributes "age" and "fnlwght"
+# 2. Random-ness: Random Shuffle of the data before Cross-Validation
+def run_decision_tree(data, attributes, prune):
 
-def tree(data,labels):
-	# For every row in the data take the last column which is the class
-	class_list = [row[-1] for row in data]
-	# If you have all the same classes
-	if class_list.count(class_list[0]) == len(class_list):
-		# print "Found leaf: " + str(class_list[0])
-		# Just return that class
-		return class_list[0]
-	# If there is only classes
-	if len(data[0]) == 1:
-		# print "Found leaf: " + str(majority(class_list))
-		# Return the majority of the classes
-		return majority(class_list)
-	# Choose the best feature of the data that you are on
-	bestFeat = choose_feature(data)
-	# Get the label of the best feature you just chose
-	bestFeatLabel = labels[bestFeat]
-	# Start the tree with the best features label you just chose
-	theTree = {bestFeatLabel:{}}
-	# Remove that feature from the label list so it does not get chose further down the tree
-	del(labels[bestFeat])
-	# Get all of the feature values from each row
-	featValues = [row[bestFeat] for row in data]
-	# Get all the unique values of the feature so there are no duplicats in the list
-	uniqueVals = set(featValues)
-	# For each value in the unique value list
-	for value in uniqueVals:
-		# Create a list of the labels to be used
-		subLabels = labels[:]
-		# The tree splits on the best feature value and you recurse to make a new sub tree
-		theTree[bestFeatLabel][value] = tree(split_data(data, bestFeat, value),subLabels)
-	# Return the tree that was created
-	return theTree
+	target = attributes[-1]
 
-# Read in the file passed in by the command line when script started
-read_csv(sys.argv[1])
+	K = 10
+	acc = []
+	for k in range(K):
+		random.shuffle(data)
+		training_set = [x for i, x in enumerate(data) if i % K != k]
+		test_set = [x for i, x in enumerate(data) if i % K == k]
+		tree = DecisionTree()
+		# Grow the tree
+		tree.learn( training_set, attributes, target )
+		# Set the results list
+		results = []
+		# For every entry in the test set
+		for entry in test_set:
+			# Get a copy of the tree
+			tempDict = tree.tree.copy()
+			# Set the result to be nothing
+			result = ""
+			# While there is still a tree to recuse down
+			while(isinstance(tempDict, dict)):
+				# The root of the tree will be a node
+				# Node.value = Best attribute
+				# Node.children = the rest of the attributes
+				root = Node(tempDict.keys()[0], tempDict[tempDict.keys()[0]],prune)
+				# Set the new tempDict to be the children of the root
+				tempDict = tempDict[tempDict.keys()[0]]
+				# The index is the position in the attributes array of the Node.value
+				index = attributes.index(root.value)
+				# The value of the test row is the corresponding attribute measurment
+				value = entry[index]
+				print "####START####"
+				print value
+				print tempDict.keys()
+				print "####END###"
+				# If the value of the test row is one of the children (i.e not chosen yet)
+				# recurse?
+				if(value in tempDict.keys()):
+					# Create a child Node
+					child = Node(value, tempDict[value],prune)
+					# The result will be the value of the measurment in the children
+					result = tempDict[value]
+					# Make the next tempDict the new children
+					tempDict = tempDict[value]
+				# If you could not find the answer
+				else:
+					# Set result to null
+					result = "Null"
+					# end
+					break
+			# If you found something
+			if result != "Null":
+				# Check to make sure it is right and add the answer to the results list
+				results.append(result == entry[-1])
 
-format_data_set()
-tree = tree(data_set, class_set)
+		accuracy = float(results.count(True))/float(len(results))
 
-test_set = [["vhigh","vhigh",2,2,"small","low","unacc"]]
-for test_row in test_set:
-	tempDict = tree.copy()
-	result = ""
-	while(isinstance(tempDict, dict)):
-		root = tempDict.keys()
-		print root
-		tempDict = tempDict[tempDict.keys()[0]]
-		print "######"
-		# print tempDict
-# 		index = feature_set.index(root)
+
+
+
+		acc.append(accuracy)
+
+	avg_acc = sum(acc)/len(acc)
+	print "Average accuracy: %.4f" % avg_acc
+
+if __name__ == "__main__":
+	# Read in the file passed in by the command line when script started
+	info = read_csv(sys.argv[1])
+	prune = sys.argv[2]
+	run_decision_tree(info[1], info[0], prune)
