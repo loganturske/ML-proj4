@@ -20,7 +20,7 @@ class_set = None
 #
 class DecisionTree():
 	# Create an empty tree
-	tree = {}
+	tree = None
 	# This function will create the tree and set it to self.tree for reference
 	def learn(self, training_set, attributes, target):
 		# Build the tree and set it to self.tree
@@ -33,21 +33,26 @@ class DecisionTree():
 # This class will represent a node/vertex of the tree when trying to classify
 #
 class Node():
+	# Set the attribute that the node corresponds to to empty
+	attr = ""
 	# Set the value to be an empty string to set on initilization
-	value = ""
+	values = ""
 	# Set a list of children to be filled up on initilization
-	children = []
+	children = None
 	# Set a value to know if you are marking this node for pruning
 	prune = 0
 	# On initilization you need to set your value and children
-	def __init__(self, val, dictionary,prune):
+	def __init__(self, attr, val, tree, prune):
 		# Set your value to whatever you passed in as the parameter "val"
-		self.value = val
+		self.attr = attr
+		self.values = val
+		self.children = tree
+		self.prune = prune
 		# Error check to make sure you passed in a dictionary in the parameter "dictionary"
-		if (isinstance(dictionary, dict)):
-			# Set your children to be the keys of the dictionary that was passed in 
-			# as "dictionary"
-			self.children = dictionary.keys()
+		# if (isinstance(dictionary, dict)):
+		# 	# Set your children to be the keys of the dictionary that was passed in 
+		# 	# as "dictionary"
+		# 	self.children = dictionary.keys()
 
 #
 # This function will read in a csv which is located at the parameter passed to it
@@ -222,7 +227,7 @@ def get_values(data, attributes, attr):
 def get_data(data, attributes, best, val):
 	# Set a 2 dimensional list to be empyt to be filled in later
 	new_data = [[]]
-	# Get the index of the attribute that you have choses passed in as "best"
+	# Get the index of the attribute that you have chose passed in as "best"
 	index = attributes.index(best)
 	# For each entry in the data set
 	for entry in data:
@@ -257,17 +262,21 @@ def build_tree(data, attributes, target):
 	# If you ran out of data
 	if not data or (len(attributes) - 1) <= 0:
 		# Return the default class you found
-		return default
+		tree = Node("class", default, None, 0)
+		return tree
 	# If you have all of the same class
 	elif vals.count(vals[0]) == len(vals):
 		# Return that class
-		return vals[0]
+		tree = Node("class", vals[0], None, 0)
+		return tree
 	# Otherwise
 	else:
 		# Get the best attribute based on the target
 		best = attr_choose(data, attributes, target)
 		# Create an empty tree
-		tree = {best:{}}
+		tree = []
+		# Create an empty values set
+		values = []
 		# For each value in the rest of the data set
 		for val in get_values(data, attributes, best):
 			# Get the of the rows based upon the best attribute and the corresponding value
@@ -279,10 +288,27 @@ def build_tree(data, attributes, target):
 			# Recurse down based on the new data and attributes you just did
 			subtree = build_tree(new_data, newAttr, target)
 			# Set the sub tree to be the one you went and recursed down to
-			tree[best][val] = subtree
-	# Return the tree
-	return tree
+			# tree[best][val] = subtree
+			tree.append(subtree)
+			values.append(val)
 
+	# Return the tree
+	return Node(best, values, tree, 1)
+
+def recurse_tree(tree, test_entry, attributes):
+
+	if tree.children == None:
+		if test_entry[-1] == tree.values:
+			return 1
+		else:
+			return 0
+	index = attributes.index(tree.attr)
+	value = test_entry[index]
+	i = 0
+	for val in tree.values:
+		if value == val:
+			return recurse_tree(tree.children[i], test_entry, attributes)
+		i += 1
 # This function runs the decision tree algorithm. It parses the file for the data-set, and then it runs the 10-fold cross-validation. It also classifies a test-instance and later compute the average accurracy
 # Improvements Used: 
 # 1. Discrete Splitting for attributes "age" and "fnlwght"
@@ -291,68 +317,28 @@ def run_decision_tree(data, attributes, prune):
 
 	target = attributes[-1]
 
-	K = 10
+	K = 5
 	acc = []
 	for k in range(K):
 		random.shuffle(data)
 		training_set = [x for i, x in enumerate(data) if i % K != k]
-		test_set = [x for i, x in enumerate(data) if i % K == k]
+		validation_set = [x for i, x in enumerate(data) if i % K == k]
 		tree = DecisionTree()
 		# Grow the tree
 		tree.learn( training_set, attributes, target )
-		# Set the results list
+
 		results = []
-		# For every entry in the test set
-		for entry in test_set:
-			# Get a copy of the tree
-			tempDict = tree.tree.copy()
-			# Set the result to be nothing
-			result = ""
-			# While there is still a tree to recuse down
-			while(isinstance(tempDict, dict)):
-				# The root of the tree will be a node
-				# Node.value = Best attribute
-				# Node.children = the rest of the attributes
-				root = Node(tempDict.keys()[0], tempDict[tempDict.keys()[0]],prune)
-				# Set the new tempDict to be the children of the root
-				tempDict = tempDict[tempDict.keys()[0]]
-				# The index is the position in the attributes array of the Node.value
-				index = attributes.index(root.value)
-				# The value of the test row is the corresponding attribute measurment
-				value = entry[index]
-				print "####START####"
-				print value
-				print tempDict.keys()
-				print "####END###"
-				# If the value of the test row is one of the children (i.e not chosen yet)
-				# recurse?
-				if(value in tempDict.keys()):
-					# Create a child Node
-					child = Node(value, tempDict[value],prune)
-					# The result will be the value of the measurment in the children
-					result = tempDict[value]
-					# Make the next tempDict the new children
-					tempDict = tempDict[value]
-				# If you could not find the answer
-				else:
-					# Set result to null
-					result = "Null"
-					# end
-					break
-			# If you found something
-			if result != "Null":
-				# Check to make sure it is right and add the answer to the results list
-				results.append(result == entry[-1])
+		for test_entry in validation_set:
+			answer = recurse_tree(tree.tree, test_entry, attributes)
+			if answer != None:
+				results.append(answer)
+		accuracy = float(results.count(1))/float(len(results))
+		print accuracy
 
-		accuracy = float(results.count(True))/float(len(results))
+	# 	acc.append(accuracy)
 
-
-
-
-		acc.append(accuracy)
-
-	avg_acc = sum(acc)/len(acc)
-	print "Average accuracy: %.4f" % avg_acc
+	# avg_acc = sum(acc)/len(acc)
+	# print "Average accuracy: %.4f" % avg_acc
 
 if __name__ == "__main__":
 	# Read in the file passed in by the command line when script started
