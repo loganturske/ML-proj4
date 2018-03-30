@@ -4,6 +4,7 @@ import random
 import sys
 import pandas
 import numpy as np
+import copy
 
 # global that will be the dataset to use
 data_set = None
@@ -300,7 +301,7 @@ def build_tree(data, attributes, target):
 
 def recurse_tree(tree, test_entry, attributes):
 
-	if tree.children == None:
+	if not tree.children:
 		if test_entry[-1] == tree.default:
 			return 1
 		else:
@@ -323,44 +324,41 @@ def can_be_pruned(tree):
 				r = True
 	return r
 
-already_pruned = 0
 # done = 1 if you pruned already
 def prune_tree(tree):
-	# if tree.children == None:
-	# 	tree.prune = 0
-	# 	return tree
 
-	global already_pruned
-	if tree.prune == 1 and already_pruned == 0:
-		print "ASDf"
+	if tree.prune == 1:
 		tree.prune = 0
 		tree.children = None
-		already_pruned = 1
-		return tree
+		return (tree, 1)
+	done = 0
 	if tree.children != None:
 		i = 0
 		for subtree in tree.children:
-			tree.children[i] = prune_tree(subtree)
+			ret = prune_tree(subtree)
+			tree.children[i] = ret[0]
+			if ret[1] == 1:
+				done = 1
+				break
 			i += 1
-	return tree
+	return (tree, done)
 
 already_marked = 0
 def mark_node(tree):
-	if tree.children == None:
+	if tree.prune == 1:
 		tree.prune = 0
-		return tree
-
-	global already_marked
-	if tree.prune == 1 and already_marked == 0:
-		tree.prune = 0
-		print "MAR"
-		already_marked = 1
-		return tree
-	i = 0
-	for subtree in tree.children:
-		tree.children[i] = mark_node(subtree)
-		i += 1
-	return tree
+		return (tree, 1)
+	done = 0
+	if tree.children != None:
+		i = 0
+		for subtree in tree.children:
+			ret = prune_tree(subtree)
+			tree.children[i] = ret[0]
+			if ret[1] == 1:
+				done = 1
+				break
+			i += 1
+	return (tree, done)
 # This function runs the decision tree algorithm. It parses the file for the data-set, and then it runs the 10-fold cross-validation. It also classifies a test-instance and later compute the average accurracy
 # Improvements Used: 
 # 1. Discrete Splitting for attributes "age" and "fnlwght"
@@ -379,7 +377,6 @@ def run_decision_tree(data, attributes, prune):
 		# Grow the tree
 		tree.learn( training_set, attributes, target )
 
-		
 		# results = []
 		# for test_entry in validation_set:
 		# 	answer = recurse_tree(tree.tree, test_entry, attributes)
@@ -387,41 +384,36 @@ def run_decision_tree(data, attributes, prune):
 		# 		results.append(answer)
 		# accuracy = float(results.count(1))/float(len(results))
 		# print accuracy
-		temp = tree.tree
-		p = can_be_pruned(temp)
-		while p:
 
+		saved = copy.deepcopy(tree.tree)
+		p = can_be_pruned(saved)
+		print "START"
+		while(p):
+			temp = copy.deepcopy(saved)
 			results = []
 			for test_entry in validation_set:
 				answer = recurse_tree(temp, test_entry, attributes)
 				if answer != None:
 					results.append(answer)
 			old_accuracy = float(results.count(1))/float(len(results))
-
-			already_pruned = 0
-			pruned_tree = prune_tree(temp)
+			prune_tree(temp)
 
 			new_results = []
 			for test_entry in validation_set:
-				answer = recurse_tree(pruned_tree, test_entry, attributes)
+				answer = recurse_tree(temp, test_entry, attributes)
 				if answer != None:
 					new_results.append(answer)
 			new_accuracy = float(new_results.count(1))/float(len(new_results))
 
-			print str(old_accuracy) + " VS " + str(new_accuracy)
+			# print str(old_accuracy) + " VS " + str(new_accuracy)
 
-			if old_accuracy > new_accuracy:
-				print "S: " + str(tree.tree.prune)
-				already_marked = 0
-				temp = mark_node(tree.tree)
-				print "E: " + str(tree.tree.prune)
+			if old_accuracy < new_accuracy:
+				saved = copy.deepcopy(temp)
 			else:
-				print "S: " + str(tree.tree.prune)
-				temp = pruned_tree
-				print "E: " + str(tree.tree.prune)
-
-			p = can_be_pruned(temp)
-		# 	print p
+				# print "NO"
+				mark_node(saved)
+			p = can_be_pruned(saved)
+		print "END"
 	# 	acc.append(accuracy)
 
 	# avg_acc = sum(acc)/len(acc)
