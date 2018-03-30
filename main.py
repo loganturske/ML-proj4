@@ -41,12 +41,15 @@ class Node():
 	children = None
 	# Set a value to know if you are marking this node for pruning
 	prune = 0
+	# Set a defualt class for when you prune the tree
+	default = ""
 	# On initilization you need to set your value and children
-	def __init__(self, attr, val, tree, prune):
+	def __init__(self, attr, val, tree, default, prune):
 		# Set your value to whatever you passed in as the parameter "val"
 		self.attr = attr
 		self.values = val
 		self.children = tree
+		self.default = default
 		self.prune = prune
 		# Error check to make sure you passed in a dictionary in the parameter "dictionary"
 		# if (isinstance(dictionary, dict)):
@@ -262,12 +265,12 @@ def build_tree(data, attributes, target):
 	# If you ran out of data
 	if not data or (len(attributes) - 1) <= 0:
 		# Return the default class you found
-		tree = Node("class", default, None, 0)
+		tree = Node("class", default, None, default, 1)
 		return tree
 	# If you have all of the same class
 	elif vals.count(vals[0]) == len(vals):
 		# Return that class
-		tree = Node("class", vals[0], None, 0)
+		tree = Node("class", vals[0], None, default, 1)
 		return tree
 	# Otherwise
 	else:
@@ -293,12 +296,12 @@ def build_tree(data, attributes, target):
 			values.append(val)
 
 	# Return the tree
-	return Node(best, values, tree, 1)
+	return Node(best, values, tree, default, 1)
 
 def recurse_tree(tree, test_entry, attributes):
 
 	if tree.children == None:
-		if test_entry[-1] == tree.values:
+		if test_entry[-1] == tree.default:
 			return 1
 		else:
 			return 0
@@ -309,6 +312,35 @@ def recurse_tree(tree, test_entry, attributes):
 		if value == val:
 			return recurse_tree(tree.children[i], test_entry, attributes)
 		i += 1
+
+def can_be_pruned(tree):
+	r = False
+	if tree.prune == 1:
+		r =  True
+	if tree.children != None:
+		for subtree in tree.children:
+			if can_be_pruned(subtree) == True:
+				r = True
+	return r
+
+# done = 1 if you pruned already
+def prune_tree(tree):
+	if tree.children == None:
+		tree.prune = 0
+		return tree
+	i = 0
+	for subtree in tree.children:
+		tree.children[i] = prune_tree(subtree)
+		i += 1
+
+def mark_node(tree):
+	if tree.prune == 1:
+		tree.prune = 0
+		return tree
+	if tree.children == None:
+		return tree
+	for subtree in tree.children:
+		return mark_node(subtree)
 # This function runs the decision tree algorithm. It parses the file for the data-set, and then it runs the 10-fold cross-validation. It also classifies a test-instance and later compute the average accurracy
 # Improvements Used: 
 # 1. Discrete Splitting for attributes "age" and "fnlwght"
@@ -327,14 +359,57 @@ def run_decision_tree(data, attributes, prune):
 		# Grow the tree
 		tree.learn( training_set, attributes, target )
 
-		results = []
-		for test_entry in validation_set:
-			answer = recurse_tree(tree.tree, test_entry, attributes)
-			if answer != None:
-				results.append(answer)
-		accuracy = float(results.count(1))/float(len(results))
-		print accuracy
+		
+		# results = []
+		# for test_entry in validation_set:
+		# 	answer = recurse_tree(tree.tree, test_entry, attributes)
+		# 	if answer != None:
+		# 		results.append(answer)
+		# accuracy = float(results.count(1))/float(len(results))
+		# print accuracy
+		p = can_be_pruned(tree.tree)
+		while(p):
 
+			results = []
+			for test_entry in validation_set:
+				answer = recurse_tree(tree.tree, test_entry, attributes)
+				if answer != None:
+					results.append(answer)
+			old_accuracy = float(results.count(1))/float(len(results))
+
+			pruned_tree = prune_tree(tree.tree)
+			temp = tree.tree
+			while(temp.children):
+				if temp.prune == 1:
+					temp.children = None
+					break;
+				i = 0
+				for child in temp.children:
+					if child.prune == 1:
+						temp.children[i].children = None
+						break;
+					i += 1
+
+		# 	new_results = []
+		# 	for test_entry in validation_set:
+		# 		answer = recurse_tree(pruned_tree, test_entry, attributes)
+		# 		if answer != None:
+		# 			new_results.append(answer)
+		# 	new_accuracy = float(new_results.count(1))/float(len(new_results))
+
+		# 	print str(old_accuracy) + " VS " + str(new_accuracy)
+
+		# 	if old_accuracy > new_accuracy:
+		# 		print "S: " + str(tree.tree.prune)
+		# 		tree.tree = mark_node(tree.tree)
+		# 		print "E: " + str(tree.tree.prune)
+		# 	else:
+		# 		print "S: " + str(tree.tree.prune)
+		# 		tree.tree = mark_node(pruned_tree)
+		# 		print "E: " + str(tree.tree.prune)
+
+			p = can_be_pruned(tree.tree)
+		# 	print p
 	# 	acc.append(accuracy)
 
 	# avg_acc = sum(acc)/len(acc)
