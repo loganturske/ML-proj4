@@ -445,22 +445,29 @@ def run_decision_tree(data, attributes, prune):
 		tree = DecisionTree()
 		# Grow the tree to completion based on the training set
 		tree.learn( training_set, attributes, target )
-
-		if (prune):
+		# If you do not want to do error reduced pruning
+		if (prune == 0):
+			# Set a list to house the results of the test
 			results = []
+			# For each test entry in the validation set
 			for test_entry in validation_set:
+				# Get the answer right or wrong
 				answer = recurse_tree(tree.tree, test_entry, attributes)
+				# If you got an answer
 				if answer != None:
+					# Add it to the results list
 					results.append(answer)
+			# Get the accuracy of the test
 			accuracy = float(results.count(1))/float(len(results))
-			print accuracy
+			# Add the accuracy of this fold test to the acc list
+			acc.append(accuracy)
 		else:
 			# Save a copy of the tree off
 			saved = copy.deepcopy(tree.tree)
 			# See if the tree can be pruned
 			can_prune = can_be_pruned(saved)
-
-			print "START"
+			# Set a variable to be the best accuracy you found
+			best_accuracy = 0.0
 			# While you are able to prune the tree
 			while(can_prune):
 				# Save a copy of the tree so far
@@ -494,21 +501,29 @@ def run_decision_tree(data, attributes, prune):
 
 				# print str(old_accuracy) + " VS " + str(new_accuracy)
 
+				# Set a variable to be the best accuracy you found so far
+				best_accuracy_so_far = 0.0
 				# If you increased accuracy pruning the tree
 				if old_accuracy < new_accuracy:
 					# The saved copy of the tree is now the pruned tree
 					saved = copy.deepcopy(temp)
+					# Set the best accuracy you found
+					best_accuracy_so_far = new_accuracy
 				# If you did not increase the accuracy by pruning
 				else:
 					# Mark the node to not be pruned again
 					mark_node(saved)
+					# Set the best accuracy you found
+					best_accuracy_so_far = old_accuracy
+				if best_accuracy_so_far > best_accuracy:
+					best_accuracy = best_accuracy_so_far
 				# See if you can prune the tree still
 				can_prune = can_be_pruned(saved)
-			print "END"
-	# 	acc.append(accuracy)
-
-	# avg_acc = sum(acc)/len(acc)
-	# print "Average accuracy: %.4f" % avg_acc
+			acc.append(best_accuracy)
+	# Get the average accuracy
+	avg_acc = sum(acc)/len(acc)
+	# Print what you found
+	print "Average accuracy: %.4f" % avg_acc
 
 if __name__ == "__main__":
 	# Read in the file passed in by the command line when script started
