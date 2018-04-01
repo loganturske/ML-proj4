@@ -193,7 +193,7 @@ def run_decision_tree(data, attributes, prune):
 		# Grow the tree to completion based on the training set
 		tree.learn( training_set, attributes, target )
 		# If you do not want to do error reduced pruning
-		if (prune == 0):
+		if (prune == str(0)):
 			# Set a list to house the results of the test
 			results = []
 			# For each test entry in the validation set
@@ -277,5 +277,7 @@ if __name__ == "__main__":
 	info = read_csv(sys.argv[1])
 	# Get the argument for reduced error pruning
 	prune = sys.argv[2]
+        if prune == str(1):
+            print "Reduced Error Pruning: enabled"
 	# Run the decision tree
 	run_decision_tree(info[1], info[0], prune)
